@@ -1,11 +1,11 @@
-# Redmine-GitHub Issue Sync 配置檔範例
+# Redmine-GitHub/GitLab Issue Sync 配置檔範例
 # 使用前請複製為 github-sync-config.yaml 並填入實際值
 
 redmine:
   # Redmine 伺服器 URL（用於 API 呼叫）
   url: "https://redmine.example.com"
 
-  # Redmine 顯示 URL（可選，用於 GitHub issue 中的連結）
+  # Redmine 顯示 URL（可選，用於 GitHub/GitLab issue 中的連結）
   # 如果不設定，會使用 url 的值
   # 使用場景：當 API URL 是內部網路位址，但用戶需要從外部存取時
   # 例如：url: "http://redmine:3000", display_url: "http://192.168.1.100:3000"
@@ -16,15 +16,40 @@ redmine:
 
   # 要監控的專案列表
   projects:
+    # 範例 1: 僅同步到 GitHub（向後相容）
     - identifier: "my-project"  # 專案識別碼（URL 中的名稱）
       custom_fields:
         # 「目標 GitHub Repo」custom field 的 ID
-        # 在 Redmine 管理介面建立後，從 API 回應中取得
         target_repo_id: 10
-
         # 「GitHub Issue URL」custom field 的 ID
         github_issue_url_id: 11
+      sync_to:
+        github: true   # 同步到 GitHub
+        gitlab: false  # 不同步到 GitLab
 
+    # 範例 2: 僅同步到 GitLab
+    # - identifier: "gitlab-project"
+    #   custom_fields:
+    #     # 「目標 GitLab Project」custom field 的 ID
+    #     target_gitlab_project_id: 12
+    #     # 「GitLab Issue URL」custom field 的 ID
+    #     gitlab_issue_url_id: 13
+    #   sync_to:
+    #     github: false
+    #     gitlab: true
+
+    # 範例 3: 同時同步到 GitHub 和 GitLab
+    # - identifier: "dual-sync-project"
+    #   custom_fields:
+    #     target_repo_id: 10
+    #     github_issue_url_id: 11
+    #     target_gitlab_project_id: 12
+    #     gitlab_issue_url_id: 13
+    #   sync_to:
+    #     github: true
+    #     gitlab: true
+
+# GitHub 配置（如果要同步到 GitHub，必須配置）
 github:
   # GitHub Personal Access Token (classic)
   # 需要 repo 權限
@@ -33,11 +58,23 @@ github:
   # GitHub Base URL（如果是 GitHub Enterprise，修改此處）
   base_url: "https://github.com"
 
+# GitLab 配置（如果要同步到 GitLab，必須配置）
+# gitlab:
+#   # GitLab Personal Access Token
+#   # 需要 api 權限（完整 API 存取）
+#   token: "glpat-your_gitlab_token_here"
+#
+#   # GitLab Base URL（可以是 gitlab.com 或自架實例）
+#   base_url: "https://gitlab.com"
+#
+#   # GitLab API 版本（預設為 v4）
+#   api_version: "v4"
+
 sync:
   # 同步間隔（支援: 1m, 5m, 1h 等）
   interval: "5m"
 
-  # GitHub issue title 格式
+  # Issue title 格式
   # %d = Redmine issue ID, %s = Redmine issue subject
   title_format: "[Redmine #%d] %s"
 
@@ -61,3 +98,34 @@ database:
   password: "${POSTGRES_PASSWORD:redmine}"
   schema: "${POSTGRES_SCHEMA:redmine_github_sync}"
   sslmode: "${POSTGRES_SSLMODE:disable}"
+
+# ============================================================
+# GitLab 整合說明
+# ============================================================
+#
+# 1. GitLab Personal Access Token 權限
+#    - 必需: api（完整 API 存取，包含讀寫）
+#    - 不足夠: read_api（僅讀取，無法創建/修改 Issue）
+#
+# 2. GitLab Project 識別方式
+#    - 推薦: 使用數字 ID（例如：12345）
+#    - 也可使用: namespace/project 格式（例如：mygroup/myproject）
+#
+# 3. 如何取得 GitLab Project ID
+#    - 進入 GitLab 專案頁面
+#    - 點擊右上角 ⋮ (三個點選單)
+#    - 選擇 "Copy project ID"
+#
+# 4. 在 Redmine 需要新增的 Custom Fields
+#    - Target GitLab Project (Text 類型)
+#    - GitLab Issue URL (Link 類型)
+#
+# 5. sync_to 設定說明
+#    - 如果不指定 sync_to，預設為 github: true（向後相容）
+#    - 可以只啟用 GitHub、只啟用 GitLab、或兩者都啟用
+#    - 同一個 Redmine Issue 可以同步到多個平台
+#
+# 6. 注意事項
+#    - 至少需要配置 github.token 或 gitlab.token 其中一個
+#    - 如果同步到 GitHub，需要配置對應的 custom_fields
+#    - 如果同步到 GitLab，需要配置對應的 custom_fields

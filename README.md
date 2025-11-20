@@ -33,10 +33,11 @@
 - RESTful API
 - 詳細文檔：[plugins/gitfetcher/README.md](plugins/gitfetcher/README.md)
 
-### GitHub Sync (背景服務)
-自動將 Redmine issues 同步到 GitHub repositories。
-- 單向同步：Redmine → GitHub
-- 支援多專案、多 repo
+### GitHub/GitLab Sync (背景服務)
+自動將 Redmine issues 同步到 GitHub 或 GitLab。
+- 單向同步：Redmine → GitHub/GitLab
+- 支援多專案、多平台
+- 可同時同步到 GitHub 和 GitLab
 - 配置檔熱更新
 - 詳細文檔：[plugins/github-sync/README.md](plugins/github-sync/README.md)
 
@@ -77,7 +78,7 @@ http_port: 8080
 log_path: "./logs"
 ```
 
-#### 2.2 GitHub Sync 配置
+#### 2.2 GitHub/GitLab Sync 配置
 
 ```bash
 cp github-sync-config.example.yaml github-sync-config.yaml
@@ -85,26 +86,68 @@ cp github-sync-config.example.yaml github-sync-config.yaml
 
 編輯 `github-sync-config.yaml`：
 
+**僅同步到 GitHub（預設）：**
 ```yaml
 redmine:
-  url: "http://redmine:3000"          # Docker 內部網路
-  display_url: "http://192.168.181.245:13000"  # 外部訪問 URL
+  url: "http://redmine:3000"
+  display_url: "http://192.168.181.245:13000"
   api_key: "your-redmine-api-key"
-
   projects:
     - identifier: "my-project"
       custom_fields:
-        target_repo_id: 11      # Redmine custom field ID
+        target_repo_id: 11
         github_issue_url_id: 12
+      sync_to:
+        github: true
+        gitlab: false
+
+github:
+  token: "ghp_xxxxxxxxxxxx"
+  base_url: "https://github.com"
+```
+
+**同時同步到 GitHub 和 GitLab：**
+```yaml
+redmine:
+  projects:
+    - identifier: "my-project"
+      custom_fields:
+        target_repo_id: 11
+        github_issue_url_id: 12
+        target_gitlab_project_id: 13
+        gitlab_issue_url_id: 14
+      sync_to:
+        github: true
+        gitlab: true
 
 github:
   token: "ghp_xxxxxxxxxxxx"
   base_url: "https://github.com"
 
-sync:
-  interval: "5m"
-  title_format: "[Redmine #%d] %s"
+gitlab:
+  token: "glpat-xxxxxxxxxxxx"
+  base_url: "https://gitlab.com"
+  api_version: "v4"
 ```
+
+**僅同步到 GitLab：**
+```yaml
+redmine:
+  projects:
+    - identifier: "my-project"
+      custom_fields:
+        target_gitlab_project_id: 13
+        gitlab_issue_url_id: 14
+      sync_to:
+        github: false
+        gitlab: true
+
+gitlab:
+  token: "glpat-xxxxxxxxxxxx"
+  base_url: "https://gitlab.com"
+```
+
+詳細說明請參考 `github-sync-config.example.yaml` 中的註解。
 
 #### 2.3 配置 SSH Keys
 
@@ -140,10 +183,19 @@ docker compose up -d github-sync
 #### 建立 Custom Fields
 進入 Redmine 管理介面 > 自訂欄位 > 議題：
 
+**GitHub 整合（如需要）：**
 1. **目標 GitHub Repo** (List)
    - 選項值：`myorg/backend`, `myorg/frontend` 等
 
 2. **GitHub Issue URL** (Link)
+   - 系統自動填入，用於顯示同步結果
+
+**GitLab 整合（如需要）：**
+1. **Target GitLab Project** (Text)
+   - 填入 GitLab Project ID（推薦）或 `namespace/project` 格式
+   - 如何取得 Project ID：進入 GitLab 專案 → 點擊右上角 ⋮ → "Copy project ID"
+
+2. **GitLab Issue URL** (Link)
    - 系統自動填入，用於顯示同步結果
 
 #### 設定 Repository

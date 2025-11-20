@@ -28,6 +28,12 @@
   - `gitlab.base_url` - GitLab 實例 URL（支援自架 GitLab）
   - `gitlab.api_version` - API 版本（預設：v4）
 
+#### FR-1.1: 配置熱更新機制
+- **新增專案的管理方式**：手動在 YAML 檔案中新增專案配置
+- **熱更新支援**：使用現有 `fsnotify` 機制自動偵測配置變更
+- **無需重啟**：配置變更後系統自動重載，排程器接收更新通知
+- **未來擴展**：可考慮提供 HTTP API 動態管理配置（非 MVP）
+
 #### FR-2: 專案配置
 - 每個 Redmine 專案可選擇同步到：
   - GitHub（現有功能）
@@ -389,12 +395,13 @@ redmine:
 ## 7. 風險與限制
 
 ### 7.1 技術限制
-- GitLab Project ID 可能不易取得（需提供 UI 或文檔說明）
 - 自架 GitLab 版本差異可能導致 API 不相容
+- 需要正確配置 Custom Field ID
 
 ### 7.2 降低風險措施
 - 提供 API 測試工具（驗證 Token 和 Project ID）
 - 明確標註支援的最低 GitLab 版本
+- 提供清晰的 GitLab Project ID 取得說明（參見附錄 9.3）
 
 ---
 
@@ -411,13 +418,35 @@ redmine:
 
 ### 9.1 GitLab Personal Access Token 權限範圍
 
-| Scope | 說明 | 是否必需 |
-|-------|------|---------|
-| `api` | 完整 API 存取 | ✅ 必需 |
-| `read_api` | 唯讀 API 存取 | ❌ 不足夠 |
-| `write_repository` | 寫入倉庫 | ❌ 非必需 |
+| Scope | 說明 | 是否必需 | 備註 |
+|-------|------|---------|------|
+| `api` | 完整 API 存取（讀寫） | ✅ 必需 | 可創建/更新/關閉 Issue 及添加評論 |
+| `read_api` | 唯讀 API 存取 | ❌ 不足夠 | 僅能讀取資料，**無法創建或修改** Issue |
+| `write_repository` | 寫入倉庫 | ❌ 非必需 | 本功能不涉及 Git 倉庫操作 |
 
-### 9.2 參考資源
+### 9.2 如何取得 GitLab Project ID
+
+**方法一：透過 UI 快速複製（推薦）**
+
+1. 進入 GitLab 專案頁面
+2. 點擊右上角的 `⋮` (三個點選單)
+3. 選擇 **"Copy project ID"**
+4. 即可取得數字格式的 Project ID（例：`12345`）
+
+**方法二：透過 API 查詢**
+
+```bash
+curl --header "PRIVATE-TOKEN: your_token" \
+  "https://gitlab.com/api/v4/projects/namespace%2Fproject"
+```
+
+回應中的 `id` 欄位即為 Project ID。
+
+**方法三：從 URL 推導（不推薦）**
+
+部分 GitLab 頁面 URL 會包含 Project ID，但這不可靠且容易混淆。建議使用方法一。
+
+### 9.3 參考資源
 
 - [GitLab Issues API Documentation](https://docs.gitlab.com/ee/api/issues.html)
 - [GitLab Notes API Documentation](https://docs.gitlab.com/ee/api/notes.html)
@@ -431,6 +460,7 @@ redmine:
 | 日期 | 版本 | 修改內容 | 作者 |
 |------|------|---------|------|
 | 2025-11-20 | 0.1 | 初始草稿 | Claude |
+| 2025-11-20 | 0.2 | 新增配置熱更新說明(FR-1.1)、GitLab Project ID 取得方式(9.2)、權限說明備註欄位(9.1) | Claude |
 
 ---
 

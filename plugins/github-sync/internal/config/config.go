@@ -16,6 +16,7 @@ type Config struct {
 	mu       sync.RWMutex
 	Redmine  RedmineConfig  `mapstructure:"redmine"`
 	GitHub   GitHubConfig   `mapstructure:"github"`
+	GitLab   GitLabConfig   `mapstructure:"gitlab"`
 	Sync     SyncConfig     `mapstructure:"sync"`
 	Database DatabaseConfig `mapstructure:"database"`
 }
@@ -32,18 +33,34 @@ type RedmineConfig struct {
 type ProjectConfig struct {
 	Identifier   string              `mapstructure:"identifier"`
 	CustomFields CustomFieldsMapping `mapstructure:"custom_fields"`
+	SyncTo       SyncToConfig        `mapstructure:"sync_to"`
 }
 
 // CustomFieldsMapping Custom Fields 對應
 type CustomFieldsMapping struct {
-	TargetRepoID      int `mapstructure:"target_repo_id"`
-	GitHubIssueURLID  int `mapstructure:"github_issue_url_id"`
+	TargetRepoID           int `mapstructure:"target_repo_id"`
+	GitHubIssueURLID       int `mapstructure:"github_issue_url_id"`
+	TargetGitLabProjectID  int `mapstructure:"target_gitlab_project_id"`
+	GitLabIssueURLID       int `mapstructure:"gitlab_issue_url_id"`
+}
+
+// SyncToConfig 指定要同步到哪些平台
+type SyncToConfig struct {
+	GitHub bool `mapstructure:"github"`
+	GitLab bool `mapstructure:"gitlab"`
 }
 
 // GitHubConfig GitHub 配置
 type GitHubConfig struct {
 	Token   string `mapstructure:"token"`
 	BaseURL string `mapstructure:"base_url"`
+}
+
+// GitLabConfig GitLab 配置
+type GitLabConfig struct {
+	Token      string `mapstructure:"token"`
+	BaseURL    string `mapstructure:"base_url"`
+	APIVersion string `mapstructure:"api_version"`
 }
 
 // SyncConfig 同步配置
@@ -156,6 +173,7 @@ func watchConfig() {
 		globalConfig.mu.Lock()
 		globalConfig.Redmine = newCfg.Redmine
 		globalConfig.GitHub = newCfg.GitHub
+		globalConfig.GitLab = newCfg.GitLab
 		globalConfig.Sync = newCfg.Sync
 		// 注意：不更新 Database 配置，因為需要重新連線
 		globalConfig.mu.Unlock()
@@ -202,11 +220,58 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("at least one project is required")
 	}
 
-	if c.GitHub.Token == "" {
-		return fmt.Errorf("github.token is required")
+	// 檢查是否至少啟用一個平台
+	hasGitHub := c.GitHub.Token != ""
+	hasGitLab := c.GitLab.Token != ""
+
+	if !hasGitHub && !hasGitLab {
+		return fmt.Errorf("at least one of github.token or gitlab.token is required")
 	}
-	if c.GitHub.BaseURL == "" {
-		c.GitHub.BaseURL = "https://github.com"
+
+	// 驗證 GitHub 配置（如果啟用）
+	if hasGitHub {
+		if c.GitHub.BaseURL == "" {
+			c.GitHub.BaseURL = "https://github.com"
+		}
+	}
+
+	// 驗證 GitLab 配置（如果啟用）
+	if hasGitLab {
+		if c.GitLab.BaseURL == "" {
+			c.GitLab.BaseURL = "https://gitlab.com"
+		}
+		if c.GitLab.APIVersion == "" {
+			c.GitLab.APIVersion = "v4"
+		}
+	}
+
+	// 驗證專案配置
+	for i, project := range c.Redmine.Projects {
+		// 如果未指定 sync_to，預設為向後相容（僅 GitHub）
+		if !project.SyncTo.GitHub && !project.SyncTo.GitLab {
+			if hasGitHub {
+				c.Redmine.Projects[i].SyncTo.GitHub = true
+			}
+		}
+
+		// 驗證必要的 custom field IDs
+		if project.SyncTo.GitHub && hasGitHub {
+			if project.CustomFields.TargetRepoID == 0 {
+				return fmt.Errorf("project %s: target_repo_id is required when syncing to GitHub", project.Identifier)
+			}
+			if project.CustomFields.GitHubIssueURLID == 0 {
+				return fmt.Errorf("project %s: github_issue_url_id is required when syncing to GitHub", project.Identifier)
+			}
+		}
+
+		if project.SyncTo.GitLab && hasGitLab {
+			if project.CustomFields.TargetGitLabProjectID == 0 {
+				return fmt.Errorf("project %s: target_gitlab_project_id is required when syncing to GitLab", project.Identifier)
+			}
+			if project.CustomFields.GitLabIssueURLID == 0 {
+				return fmt.Errorf("project %s: gitlab_issue_url_id is required when syncing to GitLab", project.Identifier)
+			}
+		}
 	}
 
 	if c.Sync.Interval == "" {

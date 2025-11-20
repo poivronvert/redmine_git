@@ -23,6 +23,7 @@ type SyncRecord struct {
 	GitHubRepo        string
 	GitHubIssueNumber int
 	GitHubIssueURL    string
+	Platform          string    // 平台名稱: "github" 或 "gitlab"
 	SyncedAt          time.Time
 }
 
@@ -140,17 +141,33 @@ func (p *PostgresDB) migrate() error {
 	return nil
 }
 
-// IsSynced 檢查 issue 是否已同步
-func (p *PostgresDB) IsSynced(redmineIssueID int) (bool, error) {
-	query := fmt.Sprintf(`
-		SELECT EXISTS(
-			SELECT 1 FROM %s.sync_records
-			WHERE redmine_issue_id = $1
-		)
-	`, p.schema)
-
+// IsSynced 檢查 issue 是否已同步（支援雙簽名以保持向後相容）
+// 如果提供 platform 參數，檢查特定平台；否則檢查所有平台
+func (p *PostgresDB) IsSynced(redmineIssueID int, platform ...string) (bool, error) {
+	var query string
 	var exists bool
-	err := p.db.QueryRow(query, redmineIssueID).Scan(&exists)
+	var err error
+
+	if len(platform) > 0 && platform[0] != "" {
+		// 檢查特定平台
+		query = fmt.Sprintf(`
+			SELECT EXISTS(
+				SELECT 1 FROM %s.sync_records
+				WHERE redmine_issue_id = $1 AND platform = $2
+			)
+		`, p.schema)
+		err = p.db.QueryRow(query, redmineIssueID, platform[0]).Scan(&exists)
+	} else {
+		// 檢查所有平台（向後相容）
+		query = fmt.Sprintf(`
+			SELECT EXISTS(
+				SELECT 1 FROM %s.sync_records
+				WHERE redmine_issue_id = $1
+			)
+		`, p.schema)
+		err = p.db.QueryRow(query, redmineIssueID).Scan(&exists)
+	}
+
 	if err != nil {
 		return false, fmt.Errorf("failed to check sync status: %w", err)
 	}
@@ -307,6 +324,39 @@ func (p *PostgresDB) GetStats() (map[string]int, error) {
 	stats["today_synced"] = todaySynced
 
 	return stats, nil
+}
+
+// RecordSyncWithPlatform 記錄同步結果（支援多平台）
+func (p *PostgresDB) RecordSyncWithPlatform(record SyncRecord, issueID string) error {
+	// 將 issueID 字串轉換為數字（如果可能）
+	var issueNumber int
+	fmt.Sscanf(issueID, "%d", &issueNumber)
+
+	query := fmt.Sprintf(`
+		INSERT INTO %s.sync_records
+		(redmine_issue_id, redmine_project, github_repo, github_issue_number, github_issue_url, platform)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		ON CONFLICT (redmine_issue_id, platform) DO UPDATE SET
+			github_repo = EXCLUDED.github_repo,
+			github_issue_number = EXCLUDED.github_issue_number,
+			github_issue_url = EXCLUDED.github_issue_url,
+			synced_at = CURRENT_TIMESTAMP
+	`, p.schema)
+
+	_, err := p.db.Exec(query,
+		record.RedmineIssueID,
+		record.RedmineProject,
+		record.GitHubRepo,
+		issueNumber,
+		record.GitHubIssueURL,
+		record.Platform,
+	)
+
+	if err != nil {
+		return fmt.Errorf("failed to record sync: %w", err)
+	}
+
+	return nil
 }
 
 // Close 關閉資料庫連線

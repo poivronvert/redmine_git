@@ -82,10 +82,10 @@
 
 ```bash
 # 複製範例配置檔
-cp github-sync-config.example.yaml github-sync-config.yaml
+cp issue-sync.example.yaml issue-sync.yaml
 
 # 編輯配置檔
-vim github-sync-config.yaml
+vim issue-sync.yaml
 ```
 
 填入實際的配置值：
@@ -155,7 +155,7 @@ docker-compose logs -f github-sync
 
 ```bash
 # 修改配置檔
-vim github-sync-config.yaml
+vim issue-sync.yaml
 
 # 等待約 1 秒，服務會自動重載
 docker-compose logs -f github-sync
@@ -346,7 +346,7 @@ cd plugins/github-sync
 go mod download
 
 # 執行（需先啟動 PostgreSQL）
-go run cmd/sync/main.go -config ../../github-sync-config.yaml
+go run cmd/sync/main.go -config ../../issue-sync.yaml
 
 # 編譯
 go build -o sync cmd/sync/main.go

@@ -361,7 +361,7 @@ redmine_git/
 ├── docker-compose.yml              # Docker Compose 配置
 ├── Dockerfile                      # Redmine Dockerfile
 ├── gitfetcher-config.yaml          # GitFetcher 配置
-├── github-sync-config.yaml         # GitHub Sync 配置
+├── issue-sync.yaml                 # Issue Sync 配置 (GitHub/GitLab)
 ├── plugins/
 │   ├── gitfetcher/                 # GitFetcher 服務
 │   │   ├── Dockerfile

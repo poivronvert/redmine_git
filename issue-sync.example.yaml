@@ -1,5 +1,5 @@
 # Redmine-GitHub/GitLab Issue Sync 配置檔範例
-# 使用前請複製為 github-sync-config.yaml 並填入實際值
+# 使用前請複製為 issue-sync.yaml 並填入實際值
 
 redmine:
   # Redmine 伺服器 URL（用於 API 呼叫）

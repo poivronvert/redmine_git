@@ -61,7 +61,7 @@ services:
     restart: unless-stopped
     volumes:
       # 配置檔案（支援熱更新）
-      - ./github-sync-config.yaml:/app/config.yaml:ro
+      - ./issue-sync.yaml:/app/config.yaml:ro
 
       # Logs 輸出
       - ./plugins/github-sync/logs:/app/logs

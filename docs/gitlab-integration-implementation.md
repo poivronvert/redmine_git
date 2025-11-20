@@ -53,7 +53,7 @@
 | `plugins/github-sync/internal/gitlab/client_test.go` | GitLab 客戶端測試 | 338 |
 | `plugins/github-sync/migrations/002_add_platform_support.sql` | 資料庫遷移腳本 | 36 |
 | `plugins/github-sync/migrations/README.md` | 遷移說明文檔 | 91 |
-| `github-sync-config-gitlab.example.yaml` | GitLab 配置範例 | 66 |
+| `issue-sync.example.yaml` | 統一配置範例（包含 GitHub/GitLab）| 132 |
 
 ### 修改文件 (3個)
 
@@ -213,7 +213,7 @@ docker exec -i super_redmine_postgres psql -U redmine -d redmine < plugins/githu
 
 ### 2. 更新配置檔
 
-參考 `github-sync-config-gitlab.example.yaml` 更新配置：
+參考 `issue-sync.example.yaml` 更新配置：
 
 ```yaml
 gitlab:
@@ -332,7 +332,7 @@ docker-compose restart github-sync
 
 - [GitLab Integration Specification](./gitlab-integration-spec.md) - 詳細規格文檔
 - [Database Migrations README](../plugins/github-sync/migrations/README.md) - 遷移指南
-- [GitLab Configuration Example](../github-sync-config-gitlab.example.yaml) - 配置範例
+- [Issue Sync Configuration Example](../issue-sync.example.yaml) - 配置範例（含 GitHub/GitLab）
 
 ---
 
